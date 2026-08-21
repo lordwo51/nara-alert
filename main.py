@@ -141,8 +141,9 @@ def main():
     all_alerts += process_pre_specs(seen)
     all_alerts += process_order_plans(seen)
 
-    if not all_alerts:
+        if not all_alerts:
         print("알림 대상 없음.")
+        save_seen(seen)  # 알림이 없어도 파일은 항상 만들어둠 (다음 git add 실패 방지)
         return
 
     print(f"총 {len(all_alerts)}건 알림 발송 시작")
