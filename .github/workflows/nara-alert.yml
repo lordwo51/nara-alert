@@ -1,0 +1,43 @@
+name: 나라장터 용역 텔레그램 알림
+
+# 10분마다 항상 트리거됩니다. 실제로 API를 조회할지는
+# scheduler.py가 판단하므로(평일/주말, 시간대별 차등 스케줄),
+# "대기" 시간대에는 그냥 빠르게 종료됩니다.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}  # 깃허브 저장소 Actions 탭에서 수동으로도 즉시 실행 가능
+
+permissions:
+  contents: write  # seen_items.json 변경사항을 저장소에 다시 커밋하기 위해 필요
+
+jobs:
+  check-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 알림 체크 실행
+        env:
+          NARA_SERVICE_KEY: ${{ secrets.NARA_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py
+
+      - name: 중복방지 기록(seen_items.json) 저장소에 반영
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_items.json
+          git diff --cached --quiet || git commit -m "chore: seen_items.json 갱신"
+          git push
