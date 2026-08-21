@@ -12,6 +12,7 @@
 이 config.py는 그 값들을 읽어오기만 합니다.
 """
 import os
+from urllib.parse import unquote
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -21,13 +22,24 @@ load_dotenv()
 #   1) 조달청_나라장터 입찰공고정보서비스
 #   2) 조달청_나라장터 사전규격정보서비스
 #   3) 조달청_나라장터 발주계획현황서비스
-# 세 서비스 모두 같은 "일반 인증키(Encoding/Decoding)"를 그대로 쓸 수 있습니다.
-# requests 라이브러리가 자동으로 URL 인코딩을 해주므로 "Decoding" 키를 넣어주세요.
-NARA_SERVICE_KEY = os.getenv("NARA_SERVICE_KEY", "")
+# 세 서비스 모두 같은 인증키를 그대로 쓸 수 있습니다.
+#
+# data.go.kr은 "Encoding(URL인코딩된 형태, %2B 등 포함)"과
+# "Decoding(원본 형태, + = 문자가 그대로 있음)" 두 버전을 제공하는데,
+# requests 라이브러리가 요청 시 자동으로 한 번 더 인코딩하기 때문에
+# Encoding 버전을 그대로 넣으면 이중 인코딩되어 오류가 날 수 있습니다.
+# 아래에서 unquote()로 항상 "디코딩된 원본 형태"로 정규화하므로,
+# 어떤 버전을 .env에 붙여넣으셔도 안전하게 동작합니다.
+_raw_key = os.getenv("NARA_SERVICE_KEY", "")
+NARA_SERVICE_KEY = unquote(_raw_key) if _raw_key else ""
 
 # ── 텔레그램 ────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+# 여러 명(또는 개인+그룹)에게 동시에 보내고 싶으면 콤마(,)로 구분해서 넣으세요.
+# 예: TELEGRAM_CHAT_ID=7496191142,-1004319379374
+_raw_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+TELEGRAM_CHAT_IDS = [cid.strip() for cid in _raw_chat_id.split(",") if cid.strip()]
 
 # ── 조회 기간 ───────────────────────────────────────────────────
 # 실행할 때마다 "최근 N일 이내 등록/공고된 건"을 조회합니다.
