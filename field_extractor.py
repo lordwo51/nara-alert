@@ -202,6 +202,36 @@ def extract_manager(text: str, demand_agency: str) -> str:
     return UNKNOWN
 
 
+def build_line(label: str, count: str, items_str: str) -> str:
+    """
+    '분야{N}인 : 목록' 형태의 줄을 만듭니다.
+    개수/목록을 확인 못 했으면 '분야파악중인' 같은 어색한 조합을 피하고
+    깔끔하게 '분야 : 파악중' 형태로 표시합니다.
+    """
+    if count == UNKNOWN or not items_str or items_str == UNKNOWN:
+        return f"{label} : {UNKNOWN}"
+    return f"{label}{count}인 : {items_str}"
+
+
+def build_committee_header(total: str) -> str:
+    """'총8명' 또는 확인 안 되면 '총 파악중' 형태로 만듭니다."""
+    if total == UNKNOWN:
+        return f"총 {UNKNOWN}"
+    return f"총{total}명"
+
+
+def build_agency_display(agency: str, demand_agency: str) -> str:
+    """
+    공고기관과 수요기관을 표시할 문자열을 만듭니다.
+    둘이 같으면 '법무부' 처럼 한 번만, 다르면 '조달청/한국토지주택공사' 처럼 표시합니다.
+    """
+    a = agency or UNKNOWN
+    d = demand_agency or UNKNOWN
+    if a == d:
+        return a
+    return f"{a}/{d}"
+
+
 # ── 템플릿별 조립 함수 ───────────────────────────────────────────
 
 def build_fields_bid_housing(name, notice_date, agency, demand_agency, amount_won, raw_text):
@@ -214,6 +244,7 @@ def build_fields_bid_housing(name, notice_date, agency, demand_agency, amount_wo
         "name": name or UNKNOWN,
         "agency": agency or UNKNOWN,
         "demand_agency": demand_agency or UNKNOWN,
+        "agency_display": build_agency_display(agency, demand_agency),
         "amount": format_amount(amount_won),
         "period": extract_period(raw_text),
         "eval_method": extract_eval_method(raw_text),
@@ -226,11 +257,9 @@ def build_fields_bid_housing(name, notice_date, agency, demand_agency, amount_wo
         "scale": extract_scale(raw_text),
         "const_cost": extract_const_cost(raw_text),
         "chief_grade": chief,
-        "field_count": field_count,
-        "field_list": field_list,
-        "support_count": support_count,
-        "support_list": support_list,
-        "committee_total": committee_total,
+        "field_line": build_line("분야", field_count, field_list),
+        "support_line": build_line("기술지원", support_count, support_list),
+        "committee_header": build_committee_header(committee_total),
         "committee_breakdown": committee_breakdown,
         "sched_fire_pq": extract_schedule_date(raw_text, ["소방PQ", "협정서"]),
         "sched_proposal": extract_schedule_date(raw_text, ["제안서"]),
@@ -248,6 +277,7 @@ def build_fields_bid_cm(name, notice_date, agency, demand_agency, amount_won, ra
         "name": name or UNKNOWN,
         "agency": agency or UNKNOWN,
         "demand_agency": demand_agency or UNKNOWN,
+        "agency_display": build_agency_display(agency, demand_agency),
         "amount": format_amount(amount_won),
         "period": extract_period(raw_text),
         "eval_method": extract_eval_method(raw_text),
@@ -259,11 +289,9 @@ def build_fields_bid_cm(name, notice_date, agency, demand_agency, amount_won, ra
         "scale": extract_scale(raw_text),
         "const_cost": extract_const_cost(raw_text),
         "chief_grade": chief,
-        "field_count": field_count,
-        "field_list": field_list,
-        "support_count": support_count,
-        "support_list": support_list,
-        "committee_total": committee_total,
+        "field_line": build_line("분야", field_count, field_list),
+        "support_line": build_line("기술지원", support_count, support_list),
+        "committee_header": build_committee_header(committee_total),
         "sched_register_pq": extract_schedule_date(raw_text, ["등록", "PQ"]),
         "sched_agreement": extract_schedule_date(raw_text, ["협정서"]),
         "sched_proposal": extract_schedule_date(raw_text, ["제안서"]),
@@ -278,6 +306,7 @@ def build_fields_order_plan(name, notice_date, agency, demand_agency, amount_won
         "name": name or UNKNOWN,
         "agency": agency or UNKNOWN,
         "demand_agency": demand_agency or UNKNOWN,
+        "agency_display": build_agency_display(agency, demand_agency),
         "amount": format_amount(amount_won),
         "eval_method": extract_eval_method(raw_text),
         "order_time": UNKNOWN,  # 발주시기는 항상 파악중 고정 (요청사항)
@@ -293,18 +322,17 @@ def build_fields_pre_spec(name, notice_date, agency, demand_agency, amount_won, 
         "name": name or UNKNOWN,
         "agency": agency or UNKNOWN,
         "demand_agency": demand_agency or UNKNOWN,
+        "agency_display": build_agency_display(agency, demand_agency),
         "amount": format_amount(amount_won),
         "period": extract_period(raw_text),
         "eval_method": extract_eval_method(raw_text),
         "area": extract_area(raw_text, dual=False),
         "scale": extract_scale(raw_text),
         "const_cost": extract_const_cost(raw_text),
-        "committee_total": committee_total,
+        "committee_header": build_committee_header(committee_total),
         "chief_grade": chief,
-        "field_count": field_count,
-        "field_list": field_list,
-        "support_count": support_count,
-        "support_list": support_list,
+        "field_line": build_line("분야", field_count, field_list),
+        "support_line": build_line("기술지원", support_count, support_list),
         "order_time": UNKNOWN,  # 발주시기는 항상 파악중 고정 (요청사항)
         "manager": extract_manager(raw_text, demand_agency),
     }
