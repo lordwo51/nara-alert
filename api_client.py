@@ -56,6 +56,13 @@ def _get_items(url, params, retries=2):
         return []
 
     header = data.get("response", {}).get("header", {})
+    if not data.get("response"):
+        # 정상 구조("response.header...")가 아예 없는 경우 -> 대부분 서비스키 미승인/오류 응답
+        # (공공데이터포털은 이 경우 종종 "cmmMsgHeader" 같은 다른 형태로 응답합니다)
+        alt_msg = data.get("cmmMsgHeader", {}) or data
+        print(f"[API 응답 구조 이상] {url}: 예상한 정상 응답 형태가 아닙니다. "
+              f"이 서비스의 data.go.kr 활용신청이 '승인' 상태인지 확인해보세요. 원본 응답: {alt_msg}")
+        return []
     if header.get("resultCode") != "00":
         print(f"[API 응답 오류] {url}: {header.get('resultCode')} {header.get('resultMsg')}")
         return []
@@ -129,8 +136,12 @@ def fetch_pre_specs():
 def fetch_order_plans():
     """최근 N일 이내 등록된 용역 발주계획 목록"""
     start, end = _date_range()
+    # 발주계획현황서비스는 다른 API와 달리 orderBgnYm/orderEndYm(연월, YYYYMM)도
+    # 필수 파라미터로 요구하는 것으로 확인되어 함께 전달합니다.
     return _paged_fetch(ORDERPLAN_BASE, ORDERPLAN_OP, {
         "inqryDiv": "1",
         "inqryBgnDt": start,
         "inqryEndDt": end,
+        "orderBgnYm": start[:6],
+        "orderEndYm": end[:6],
     })
