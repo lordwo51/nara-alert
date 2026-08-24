@@ -32,10 +32,10 @@ def render_bid_housing(f: dict) -> str:
 (1) 공고/수요기관 : {f['agency_display']}
 (2) 용역금액/기간 : {f['amount']}/{f['period']}
 (3) 평가방법 : {f['eval_method']}
-(4) 공동도급 : {f['joint_count']}개사 이내(최소{f['joint_pct']}%)
+(4) 공동도급 : {f['joint_line']}
 (5) 개 요 : {f['overview_name']}
   - 블 록 : {f['block']}
-  - 연면적 : {f['area1']}㎡/{f['area2']}㎡
+  - 연면적 : {f['area_line']}
   - 규 모 : {f['scale']}
   - 공사비 : {f['const_cost']}
 (6) 평가대상
@@ -61,10 +61,10 @@ def render_bid_cm(f: dict) -> str:
 (1) 공고/수요기관 : {f['agency_display']}
 (2) 용역금액/기간 : {f['amount']}/{f['period']}
 (3) 평가방법 : {f['eval_method']}
-(4) 공동도급 : {f['joint_count']}개사 이내(최소{f['joint_pct']}%)
+(4) 공동도급 : {f['joint_line']}
 (5) 분담비율 : {f['split_ratio']}
 (6) 개 요 : {f['overview_name']}
-- 연면적 : {f['area']}㎡
+- 연면적 : {f['area_line']}
 - 규 모 : {f['scale']}
 - 공사비 : {f['const_cost']}
 (7) 평가대상 ({f['committee_header']})
@@ -84,6 +84,7 @@ def render_order_plan(f: dict) -> str:
     """[발주계획]"""
     body = f"""[발주계획] -{f['date']}-
 * {f['name']}
+
 (1) 공고/수요기관 : {f['agency_display']}
 (2) 용역금액 : {f['amount']}
 (3) 평가방법 : {f['eval_method']}
@@ -96,11 +97,12 @@ def render_pre_spec(f: dict) -> str:
     """[사전규격]"""
     body = f"""[사전규격] -{f['date']}-
 * {f['name']}
+
 (1) 공고/수요기관 : {f['agency_display']}
 (2) 용역금액/기간 : {f['amount']} / {f['period']}
 (3) 평가방법 : {f['eval_method']}
 (4) 개      요
-  - 연면적 : {f['area']}㎡
+  - 연면적 : {f['area_line']}
   - 규   모 : {f['scale']}
   - 공사비 : {f['const_cost']}
 (5)  평가대상 ({f['committee_header']})
