@@ -17,14 +17,14 @@ from datetime import datetime, timedelta
 
 from config import NARA_SERVICE_KEY, LOOKBACK_DAYS, ROWS_PER_PAGE, MAX_PAGES
 
-BID_BASE = "http://apis.data.go.kr/1230000/ad/BidPublicInfoService"
+BID_BASE = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService"
 BID_OP = "getBidPblancListInfoServcPPSSrch"           # 입찰공고(용역) 목록
 EORDER_OP = "getBidPblancListInfoEorderAtchFileInfo"  # e발주 첨부파일(제안요청서 등)
 
-PRESPEC_BASE = "http://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService"
+PRESPEC_BASE = "https://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService"
 PRESPEC_OP = "getPublicPrcureThngInfoServcPPSSrch"    # 사전규격(용역) 목록
 
-ORDERPLAN_BASE = "http://apis.data.go.kr/1230000/ao/OrderPlanSttusService"
+ORDERPLAN_BASE = "https://apis.data.go.kr/1230000/ao/OrderPlanSttusService"
 ORDERPLAN_OP = "getOrderPlanSttusListServc"           # 발주계획(용역) 목록
 
 
@@ -35,14 +35,24 @@ def _date_range(days=None):
     return start.strftime("%Y%m%d0000"), end.strftime("%Y%m%d2359")
 
 
-def _get_items(url, params):
-    """공통 응답 파싱: items가 dict/list/빈 문자열 등 제각각으로 오는 것을 모두 흡수."""
-    try:
-        resp = requests.get(url, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception as e:
-        print(f"[API 오류] {url} 요청 실패: {e}")
+def _get_items(url, params, retries=2):
+    """공통 응답 파싱: items가 dict/list/빈 문자열 등 제각각으로 오는 것을 모두 흡수.
+    일시적인 접속 문제(타임아웃 등)를 대비해 짧게 재시도합니다."""
+    data = None
+    last_error = None
+    for attempt in range(retries):
+        try:
+            resp = requests.get(url, params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            break
+        except Exception as e:
+            last_error = e
+            if attempt < retries - 1:
+                time.sleep(2)  # 잠시 후 재시도
+                continue
+    if data is None:
+        print(f"[API 오류] {url} 요청 실패({retries}회 재시도): {last_error}")
         return []
 
     header = data.get("response", {}).get("header", {})
