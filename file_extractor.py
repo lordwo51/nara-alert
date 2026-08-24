@@ -6,7 +6,7 @@
 여기서는 "면접" 같은 특정 단어가 본문에 있는지만 확인하면 되므로,
 완벽한 서식 보존보다는 "최대한 많은 텍스트를 뽑아내는 것"을 목표로 합니다.
 
-지원 형식: .hwp, .hwpx, .pdf, .docx, .zip (zip 안에 위 형식이 있으면 재귀적으로 처리)
+지원 형식: .hwp, .hwpx, .pdf, .docx, .xlsx, .zip (zip 안에 위 형식이 있으면 재귀적으로 처리)
 """
 import io
 import os
@@ -135,6 +135,43 @@ def extract_from_docx(file_bytes: bytes) -> str:
         return ""
 
 
+def extract_from_xlsx(file_bytes: bytes) -> str:
+    """XLSX(엑셀, ZIP+XML 구조)에서 셀 텍스트를 추출."""
+    try:
+        text_parts = []
+        ns = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            shared_strings = []
+            if "xl/sharedStrings.xml" in zf.namelist():
+                content = zf.read("xl/sharedStrings.xml").decode("utf-8", errors="ignore")
+                root = ET.fromstring(content)
+                for si in root.findall(".//a:si", ns):
+                    texts = [t.text or "" for t in si.findall(".//a:t", ns)]
+                    shared_strings.append("".join(texts))
+
+            sheet_files = sorted(
+                n for n in zf.namelist()
+                if n.startswith("xl/worksheets/sheet") and n.endswith(".xml")
+            )
+            for sheet_name in sheet_files:
+                content = zf.read(sheet_name).decode("utf-8", errors="ignore")
+                root = ET.fromstring(content)
+                for c in root.findall(".//a:c", ns):
+                    v = c.find("a:v", ns)
+                    if v is None or v.text is None:
+                        continue
+                    if c.get("t") == "s":
+                        try:
+                            text_parts.append(shared_strings[int(v.text)])
+                        except (ValueError, IndexError):
+                            pass
+                    else:
+                        text_parts.append(v.text)
+        return "\n".join(text_parts)
+    except Exception:
+        return ""
+
+
 def _select_best_from_zip(names):
     """ZIP 안에 여러 파일이 있으면 제안요청서/과업지시서 > hwp/hwpx > pdf/docx 순으로 하나 고름."""
     valid = [n for n in names if not n.endswith("/") and not os.path.basename(n).startswith(".")]
@@ -164,17 +201,53 @@ def extract_from_zip(file_bytes: bytes) -> str:
 
 
 def extract_text(file_bytes: bytes, filename: str) -> str:
-    """파일 확장자에 따라 알맞은 추출 함수로 분기."""
+    """
+    파일 확장자에 따라 알맞은 추출 함수로 분기.
+    확장자로 추출이 안 되거나(빈 결과), 확장자 자체가 불명확한 이름
+    (예: API가 실제 파일명 대신 붙여준 '규격문서1' 같은 이름)인 경우,
+    파일 내용의 시그니처(매직 바이트)를 보고 실제 형식을 다시 판별합니다.
+    """
     ext = Path(filename).suffix.lower()
+    text = ""
     if ext == ".hwp":
-        return extract_from_hwp(file_bytes)
-    if ext == ".hwpx":
-        return extract_from_hwpx(file_bytes)
-    if ext == ".pdf":
+        text = extract_from_hwp(file_bytes)
+    elif ext == ".hwpx":
+        text = extract_from_hwpx(file_bytes)
+    elif ext == ".pdf":
+        text = extract_from_pdf(file_bytes)
+    elif ext == ".docx":
+        text = extract_from_docx(file_bytes)
+    elif ext == ".xlsx":
+        text = extract_from_xlsx(file_bytes)
+    elif ext == ".zip":
+        text = extract_from_zip(file_bytes)
+
+    if text.strip():
+        return text
+
+    return extract_by_signature(file_bytes)
+
+
+def extract_by_signature(file_bytes: bytes) -> str:
+    """확장자 없이도, 파일 내용 맨 앞 바이트(시그니처)로 실제 형식을 추정해 추출."""
+    if not file_bytes:
+        return ""
+    if file_bytes.startswith(b"%PDF"):
         return extract_from_pdf(file_bytes)
-    if ext == ".docx":
-        return extract_from_docx(file_bytes)
-    if ext == ".zip":
+    if file_bytes.startswith(b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"):
+        return extract_from_hwp(file_bytes)  # 구버전 HWP/DOC/XLS는 모두 이 OLE 시그니처를 씁니다
+    if file_bytes[:2] == b"PK":  # ZIP 기반 포맷(HWPX/DOCX/XLSX/일반 ZIP)
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+                names = zf.namelist()
+                if any(n.startswith("Contents/section") for n in names):
+                    return extract_from_hwpx(file_bytes)
+                if "word/document.xml" in names:
+                    return extract_from_docx(file_bytes)
+                if "xl/workbook.xml" in names:
+                    return extract_from_xlsx(file_bytes)
+        except Exception:
+            pass
         return extract_from_zip(file_bytes)
     return ""
 
