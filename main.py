@@ -84,9 +84,11 @@ def process_pre_specs(seen: set) -> list:
         amount = best_amount(item, ["asignBdgtAmt", "bdgtAmt"])
         notice_date = item.get("rgstDt") or item.get("opninRgstClseDt", "")
         attachments = get_prespec_attachments(item)
+        print(f"  - [{name}] 첨부파일 URL {len(attachments)}개 발견")
 
         result = classify(name, notice_agency, demand_agency, amount, attachments, notice_date, "", "사전규격")
         if result:
+            print(f"    -> 본문 추출 길이: {len(result.get('raw_text',''))}자")
             alerts.append((uid, result))
 
     return alerts
