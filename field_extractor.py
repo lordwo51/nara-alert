@@ -214,10 +214,31 @@ def build_line(label: str, count: str, items_str: str) -> str:
 
 
 def build_committee_header(total: str) -> str:
-    """'총8명' 또는 확인 안 되면 '총 파악중' 형태로 만듭니다."""
+    """알 때만 '총8명', 모르면 단위 없이 그냥 '파악중'."""
     if total == UNKNOWN:
-        return f"총 {UNKNOWN}"
+        return UNKNOWN
     return f"총{total}명"
+
+
+def build_joint_line(count: str, pct: str) -> str:
+    """알 때만 '3개사 이내(최소15%)', 하나라도 모르면 단위 없이 그냥 '파악중'."""
+    if count == UNKNOWN or pct == UNKNOWN:
+        return UNKNOWN
+    return f"{count}개사 이내(최소{pct}%)"
+
+
+def build_area_line(area: str) -> str:
+    """알 때만 '15000㎡', 모르면 단위 없이 그냥 '파악중'."""
+    if area == UNKNOWN:
+        return UNKNOWN
+    return f"{area}㎡"
+
+
+def build_dual_area_line(area1: str, area2: str) -> str:
+    """알 때만 '45000㎡/50000㎡', 하나라도 모르면 단위 없이 그냥 '파악중'."""
+    if area1 == UNKNOWN or area2 == UNKNOWN:
+        return UNKNOWN
+    return f"{area1}㎡/{area2}㎡"
 
 
 def build_agency_display(agency: str, demand_agency: str) -> str:
@@ -250,10 +271,12 @@ def build_fields_bid_housing(name, notice_date, agency, demand_agency, amount_wo
         "eval_method": extract_eval_method(raw_text),
         "joint_count": joint_count,
         "joint_pct": joint_pct,
+        "joint_line": build_joint_line(joint_count, joint_pct),
         "overview_name": extract_overview_name(raw_text),
         "block": UNKNOWN,  # 블록 표기는 문서마다 형식이 제각각이라 기본 파악중 (필요시 정규식 추가)
         "area1": area1,
         "area2": area2,
+        "area_line": build_dual_area_line(area1, area2),
         "scale": extract_scale(raw_text),
         "const_cost": extract_const_cost(raw_text),
         "chief_grade": chief,
@@ -283,9 +306,11 @@ def build_fields_bid_cm(name, notice_date, agency, demand_agency, amount_won, ra
         "eval_method": extract_eval_method(raw_text),
         "joint_count": joint_count,
         "joint_pct": joint_pct,
+        "joint_line": build_joint_line(joint_count, joint_pct),
         "split_ratio": extract_split_ratio(raw_text),
         "overview_name": extract_overview_name(raw_text),
         "area": extract_area(raw_text, dual=False),
+        "area_line": build_area_line(extract_area(raw_text, dual=False)),
         "scale": extract_scale(raw_text),
         "const_cost": extract_const_cost(raw_text),
         "chief_grade": chief,
@@ -327,6 +352,7 @@ def build_fields_pre_spec(name, notice_date, agency, demand_agency, amount_won, 
         "period": extract_period(raw_text),
         "eval_method": extract_eval_method(raw_text),
         "area": extract_area(raw_text, dual=False),
+        "area_line": build_area_line(extract_area(raw_text, dual=False)),
         "scale": extract_scale(raw_text),
         "const_cost": extract_const_cost(raw_text),
         "committee_header": build_committee_header(committee_total),
