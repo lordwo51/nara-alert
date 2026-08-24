@@ -191,9 +191,11 @@ def download_and_extract(url: str, filename: str = "") -> str:
     try:
         resp = requests.get(url, timeout=30)
         resp.raise_for_status()
-        return extract_text(resp.content, filename)
+        text = extract_text(resp.content, filename)
+        print(f"    [첨부파일 처리] {filename}: {len(resp.content)}바이트 다운로드, 텍스트 {len(text)}자 추출")
+        return text
     except Exception as e:
-        print(f"[첨부파일 다운로드 실패] {filename}: {e}")
+        print(f"    [첨부파일 다운로드 실패] {filename}: {e}")
         return ""
 
 
